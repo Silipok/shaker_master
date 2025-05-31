@@ -1,0 +1,25 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "shaker_master",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "${workspaceFolder}/app",
+    },
+    {
+      "name": "shaker_master (profile mode)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "${workspaceFolder}/app",
+      "flutterMode": "profile"
+    },
+    {
+      "name": "shaker_master (release mode)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "${workspaceFolder}/app",
+      "flutterMode": "release"
+    }
+  ]
+}
