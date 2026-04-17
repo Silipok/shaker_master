@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_gemma/flutter_gemma.dart';
 
@@ -10,149 +9,97 @@ class GemmaTestScreen extends StatefulWidget {
 }
 
 class _GemmaTestScreenState extends State<GemmaTestScreen> {
+  static const _modelUrl =
+      'https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm';
+
   String _statusMessage = 'Model not loaded.';
-  String _generatedTask = '';
-  List<Map<String, dynamic>> _exercises = [];
-  final Map<int, TextEditingController> _controllers = {};
-  final Map<int, bool?> _results = {};
-  bool _isLoading = false;
-  double _downloadProgress = 0.0;
   bool _isModelInstalled = false;
+  bool _isInstalling = false;
+  bool _isGenerating = false;
+  double _downloadProgress = 0.0;
 
   InferenceChat? _chat;
+
+  final TextEditingController _inputController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  final List<_ChatMessage> _messages = [];
 
   @override
   void initState() {
     super.initState();
-    // In a real app we'd check if a model is already active. For this test screen,
-    // we'll instruct the user to download it from the HF network.
+    _restoreExistingModel();
+  }
+
+  @override
+  void dispose() {
+    _inputController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _restoreExistingModel() async {
+    try {
+      final installed = await FlutterGemma.listInstalledModels();
+      if (installed.isEmpty || !mounted) return;
+      final model = await FlutterGemma.getActiveModel(maxTokens: 1024);
+      final chat = await model.createChat(
+        systemInstruction:
+            'You are a helpful assistant. Answer concisely and in the '
+            "language of the user's question.",
+      );
+      if (!mounted) return;
+      setState(() {
+        _chat = chat;
+        _isModelInstalled = true;
+        _statusMessage = 'Model ready.';
+      });
+    } catch (_) {
+      // No active model yet — stay on the install screen.
+    }
   }
 
   Future<void> _installModel() async {
     setState(() {
-      _isLoading = true;
+      _isInstalling = true;
       _statusMessage = 'Installing model...';
       _downloadProgress = 0.0;
     });
 
     try {
-      // For general Gemma inference, Gemma3n or other small CPU/GPU variants are recommended.
-      // This URL uses a small 270M community-provided model that typically doesn't require a gated token.
       await FlutterGemma.installModel(
             modelType: ModelType.gemmaIt,
             fileType: ModelFileType.litertlm,
           )
-          .fromNetwork(
-            'https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm',
-          )
+          .fromNetwork(_modelUrl)
           .withProgress((progress) {
-            if (mounted) {
-              setState(() {
-                _downloadProgress = progress / 100;
-              });
-            }
+            if (!mounted) return;
+            setState(() => _downloadProgress = progress / 100);
           })
           .install();
 
       final model = await FlutterGemma.getActiveModel(maxTokens: 1024);
-
       _chat = await model.createChat(
         systemInstruction:
-            'You are an English language tutor. Generate exercises specifically testing the Present Simple tense. All your responses must be strictly in valid JSON format without any markdown code blocks or extra text.',
+            'You are a helpful assistant. Answer concisely and in the '
+            "language of the user's question.",
       );
 
+      if (!mounted) return;
       setState(() {
         _isModelInstalled = true;
         _statusMessage = 'Model ready.';
       });
     } catch (e) {
-      setState(() {
-        _statusMessage = 'Error installing model: $e';
-      });
+      if (!mounted) return;
+      setState(() => _statusMessage = 'Error installing model: $e');
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isInstalling = false);
     }
-  }
-
-  Future<void> _generateTask() async {
-    if (_chat == null) return;
-
-    setState(() {
-      _isLoading = true;
-      _statusMessage = 'Generating task...';
-      _generatedTask = '';
-    });
-
-    try {
-      await _chat!.addQueryChunk(
-        Message.text(
-          text:
-              'Generate 3 fill-in-the-blank style exercises for the Present Simple tense. Use the format with the base verb in parentheses, for example: "I __(to be) 18 years old.". Output strictly as a JSON array of objects with keys: "sentence" (containing the blank and base verb) and "answer". Example: [{"sentence": "She __(to drink) milk everyday.", "answer": "drinks"}]',
-          isUser: true,
-        ),
-      );
-
-      final response = await _chat!.generateChatResponse();
-
-      setState(() {
-        String rawText = '';
-        if (response is TextResponse) {
-          rawText = response.token;
-        } else {
-          rawText = response.toString();
-        }
-
-        _generatedTask = rawText;
-        _exercises.clear();
-        _controllers.clear();
-        _results.clear();
-
-        try {
-          final jsonStart = rawText.indexOf('[');
-          final jsonEnd = rawText.lastIndexOf(']');
-          if (jsonStart != -1 && jsonEnd != -1) {
-            final jsonString = rawText.substring(jsonStart, jsonEnd + 1);
-            final List<dynamic> parsed = jsonDecode(jsonString);
-            _exercises = List<Map<String, dynamic>>.from(parsed);
-
-            for (var i = 0; i < _exercises.length; i++) {
-              _controllers[i] = TextEditingController();
-            }
-          }
-        } catch (e) {
-          debugPrint('Could not parse JSON: $e');
-        }
-
-        _statusMessage = 'Task generated.';
-      });
-    } catch (e) {
-      setState(() {
-        _statusMessage = 'Error generating task: $e';
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    for (final controller in _controllers.values) {
-      controller.dispose();
-    }
-    super.dispose();
   }
 
   Future<void> _deleteModel() async {
     setState(() {
-      _isLoading = true;
+      _isInstalling = true;
       _statusMessage = 'Deleting models...';
     });
 
@@ -161,224 +108,333 @@ class _GemmaTestScreenState extends State<GemmaTestScreen> {
       for (final modelId in models) {
         await FlutterGemma.uninstallModel(modelId);
       }
-
+      if (!mounted) return;
       setState(() {
         _isModelInstalled = false;
         _chat = null;
-        _statusMessage = 'Model deleted successfully.';
+        _statusMessage = 'Model deleted.';
         _downloadProgress = 0.0;
-        _generatedTask = '';
-        _exercises.clear();
-        _controllers.clear();
-        _results.clear();
+        _messages.clear();
       });
     } catch (e) {
+      if (!mounted) return;
+      setState(() => _statusMessage = 'Error deleting model: $e');
+    } finally {
+      if (mounted) setState(() => _isInstalling = false);
+    }
+  }
+
+  Future<void> _send() async {
+    final chat = _chat;
+    final text = _inputController.text.trim();
+    if (chat == null || text.isEmpty || _isGenerating) return;
+
+    _inputController.clear();
+    setState(() {
+      _messages.add(_ChatMessage(role: _Role.user, text: text));
+      _messages.add(const _ChatMessage(role: _Role.assistant, text: ''));
+      _isGenerating = true;
+      _statusMessage = 'Generating...';
+    });
+    _scrollToBottom();
+
+    try {
+      await chat.addQueryChunk(Message.text(text: text, isUser: true));
+      final response = await chat.generateChatResponse();
+      final answer = response is TextResponse
+          ? response.token
+          : response.toString();
+
+      if (!mounted) return;
       setState(() {
-        _statusMessage = 'Error deleting model: $e';
+        _messages[_messages.length - 1] =
+            _ChatMessage(role: _Role.assistant, text: answer);
+        _statusMessage = 'Model ready.';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _messages[_messages.length - 1] = _ChatMessage(
+          role: _Role.assistant,
+          text: 'Error: $e',
+          isError: true,
+        );
+        _statusMessage = 'Error generating response.';
       });
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isGenerating = false);
+      _scrollToBottom();
     }
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Flutter Gemma Tests')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      appBar: AppBar(
+        title: const Text('Gemma chat'),
+        actions: [
+          if (_isModelInstalled)
+            IconButton(
+              tooltip: 'Delete model',
+              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              onPressed: _isInstalling || _isGenerating ? null : _deleteModel,
+            ),
+        ],
+      ),
+      body: Column(
+        children: [
+          _StatusBar(
+            message: _statusMessage,
+            progress: _isInstalling && !_isModelInstalled && _downloadProgress > 0
+                ? _downloadProgress
+                : null,
+          ),
+          Expanded(
+            child: !_isModelInstalled
+                ? _InstallPrompt(
+                    isInstalling: _isInstalling,
+                    onInstall: _installModel,
+                  )
+                : _ChatView(
+                    controller: _scrollController,
+                    messages: _messages,
+                    isGenerating: _isGenerating,
+                  ),
+          ),
+          if (_isModelInstalled)
+            _ChatInput(
+              controller: _inputController,
+              enabled: !_isGenerating,
+              onSend: _send,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+enum _Role { user, assistant }
+
+class _ChatMessage {
+  const _ChatMessage({
+    required this.role,
+    required this.text,
+    this.isError = false,
+  });
+
+  final _Role role;
+  final String text;
+  final bool isError;
+}
+
+class _StatusBar extends StatelessWidget {
+  const _StatusBar({required this.message, this.progress});
+
+  final String message;
+  final double? progress;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            message,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          if (progress != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: LinearProgressIndicator(value: progress),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InstallPrompt extends StatelessWidget {
+  const _InstallPrompt({required this.isInstalling, required this.onInstall});
+
+  final bool isInstalling;
+  final VoidCallback onInstall;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              'Status: $_statusMessage',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+            const Text(
+              'Install the on-device Gemma model to start chatting.',
+              textAlign: TextAlign.center,
             ),
-            if (_isLoading && !_isModelInstalled && _downloadProgress > 0)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: LinearProgressIndicator(value: _downloadProgress),
-              ),
             const SizedBox(height: 16),
-            if (!_isModelInstalled)
-              ElevatedButton.icon(
-                onPressed: _isLoading ? null : _installModel,
-                icon:
-                    _isLoading
-                        ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                        : const Icon(Icons.download),
-                label: const Text('Install Model'),
-              )
-            else
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: _isLoading ? null : _generateTask,
-                    icon:
-                        _isLoading
-                            ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                            : const Icon(Icons.school),
-                    label: const Text('Generate JSON Task'),
-                  ),
-                  const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    onPressed: _isLoading ? null : _deleteModel,
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    label: const Text(
-                      'Delete Model',
-                      style: TextStyle(color: Colors.red),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.red),
-                    ),
-                  ),
-                ],
-              ),
-            const SizedBox(height: 24),
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
-                  borderRadius: BorderRadius.circular(12),
+            ElevatedButton.icon(
+              onPressed: isInstalling ? null : onInstall,
+              icon: isInstalling
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.download),
+              label: const Text('Install model'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ChatView extends StatelessWidget {
+  const _ChatView({
+    required this.controller,
+    required this.messages,
+    required this.isGenerating,
+  });
+
+  final ScrollController controller;
+  final List<_ChatMessage> messages;
+  final bool isGenerating;
+
+  @override
+  Widget build(BuildContext context) {
+    if (messages.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text(
+            'Type a question below to start the conversation.',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+    return ListView.separated(
+      controller: controller,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      itemCount: messages.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (context, i) {
+        final m = messages[i];
+        final isLast = i == messages.length - 1;
+        final showPlaceholder = isGenerating &&
+            isLast &&
+            m.role == _Role.assistant &&
+            m.text.isEmpty;
+        return _MessageBubble(message: m, showPlaceholder: showPlaceholder);
+      },
+    );
+  }
+}
+
+class _MessageBubble extends StatelessWidget {
+  const _MessageBubble({required this.message, this.showPlaceholder = false});
+
+  final _ChatMessage message;
+  final bool showPlaceholder;
+
+  @override
+  Widget build(BuildContext context) {
+    final isUser = message.role == _Role.user;
+    final theme = Theme.of(context);
+    final bubbleColor = isUser
+        ? theme.primaryColor.withValues(alpha: 0.12)
+        : (message.isError
+              ? Colors.red.withValues(alpha: 0.08)
+              : theme.colorScheme.surfaceContainerHighest);
+    final textColor = message.isError ? Colors.red.shade900 : null;
+
+    return Align(
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.8,
+        ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: bubbleColor,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: showPlaceholder
+              ? const SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : SelectableText(
+                  message.text,
+                  style: TextStyle(fontSize: 15, color: textColor),
                 ),
-                padding: const EdgeInsets.all(12),
-                child:
-                    _exercises.isNotEmpty && !_isLoading
-                        ? ListView.separated(
-                          itemCount: _exercises.length,
-                          separatorBuilder: (context, index) => const Divider(),
-                          itemBuilder: (context, index) {
-                            final ex = _exercises[index];
-                            final sentence = ex['sentence']?.toString() ?? '';
-                            final parts = sentence.split('__');
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 8.0,
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Wrap(
-                                    crossAxisAlignment:
-                                        WrapCrossAlignment.center,
-                                    children: [
-                                      Text(
-                                        parts.isNotEmpty ? parts[0] : sentence,
-                                        style: const TextStyle(fontSize: 16),
-                                      ),
-                                      if (parts.length > 1) ...[
-                                        Container(
-                                          width: 120,
-                                          margin: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                          ),
-                                          child: TextField(
-                                            controller: _controllers[index],
-                                            decoration: InputDecoration(
-                                              isDense: true,
-                                              contentPadding:
-                                                  const EdgeInsets.symmetric(
-                                                    vertical: 8,
-                                                    horizontal: 8,
-                                                  ),
-                                              border:
-                                                  const OutlineInputBorder(),
-                                              fillColor:
-                                                  _results[index] == true
-                                                      ? Colors.green.withValues(
-                                                        alpha: 0.1,
-                                                      )
-                                                      : _results[index] == false
-                                                      ? Colors.red.withValues(
-                                                        alpha: 0.1,
-                                                      )
-                                                      : null,
-                                              filled: _results[index] != null,
-                                            ),
-                                            onChanged: (_) {
-                                              if (_results[index] != null) {
-                                                setState(() {
-                                                  _results[index] = null;
-                                                });
-                                              }
-                                            },
-                                          ),
-                                        ),
-                                        Text(
-                                          parts.sublist(1).join('__'),
-                                          style: const TextStyle(fontSize: 16),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                  if (_results[index] == false)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 8.0),
-                                      child: Text(
-                                        'Correct answer: ${ex['answer']}',
-                                        style: const TextStyle(
-                                          color: Colors.red,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            );
-                          },
-                        )
-                        : SingleChildScrollView(
-                          child: Text(
-                            _generatedTask.isEmpty && !_isLoading
-                                ? 'Your JSON task will appear here...'
-                                : _generatedTask,
-                            style: const TextStyle(fontSize: 16),
-                          ),
-                        ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChatInput extends StatelessWidget {
+  const _ChatInput({
+    required this.controller,
+    required this.enabled,
+    required this.onSend,
+  });
+
+  final TextEditingController controller;
+  final bool enabled;
+  final VoidCallback onSend;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                enabled: enabled,
+                minLines: 1,
+                maxLines: 4,
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => enabled ? onSend() : null,
+                decoration: InputDecoration(
+                  hintText: 'Ask Gemma anything…',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
               ),
             ),
-            if (_exercises.isNotEmpty && !_isLoading)
-              Padding(
-                padding: const EdgeInsets.only(top: 16.0),
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      for (int i = 0; i < _exercises.length; i++) {
-                        final answer =
-                            _exercises[i]['answer']
-                                ?.toString()
-                                .trim()
-                                .toLowerCase() ??
-                            '';
-                        final userAnswer =
-                            _controllers[i]?.text.trim().toLowerCase() ?? '';
-                        _results[i] = answer == userAnswer;
-                      }
-                    });
-                  },
-                  icon: const Icon(Icons.check_circle_outline),
-                  label: const Text('Check Answers'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).primaryColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ),
+            const SizedBox(width: 8),
+            IconButton.filled(
+              onPressed: enabled ? onSend : null,
+              icon: const Icon(Icons.send),
+            ),
           ],
         ),
       ),
