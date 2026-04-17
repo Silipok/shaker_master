@@ -1,5 +1,5 @@
 # Define phony targets to avoid conflicts with files
-.PHONY: flutter-get dart-gen dart-gen-watch template-dev-init tmpl-git-config
+.PHONY: help get bootstrap gen gen-watch build-android template-dev-init tmpl-git-config
 
 # Default help command
 help:
@@ -9,6 +9,7 @@ help:
 		printf "%-25s %s\n" "make bootstrap" "Bootstrap Project"; \
 	  printf "%-25s %s\n" "make gen" "Generate Dart files"; \
 	  printf "%-25s %s\n" "make gen-watch" "Watch and generate Dart files"; \
+	  printf "%-25s %s\n" "make build-android" "Build Android APK + AAB (--apk/--aab/--env/--sentry-dsn)"; \
 	}
 
 # Task: Get flutter dependencies
@@ -29,6 +30,11 @@ gen:
 gen-watch:
 	@echo "Watching Dart codegen..."
 	dart run build_runner watch -d
+
+# Task: Build Flutter Android APK and AAB
+# Override targets with: make build-android ARGS="--apk --env staging"
+build-android:
+	bash scripts/build-android.bash $(ARGS)
 
 # Task: Initialize template for development
 # should be removed if you're using Sizzle Starter for your project

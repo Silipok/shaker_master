@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:shaker_master/src/core/common/layout/window_size.dart';
 import 'package:shaker_master/src/feature/initialization/logic/composition_root.dart';
 import 'package:shaker_master/src/feature/initialization/widget/dependencies_scope.dart';
@@ -23,12 +22,9 @@ class RootContext extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DefaultAssetBundle(
-      bundle: SentryAssetBundle(),
-      child: DependenciesScope(
-        dependencies: compositionResult.dependencies,
-        child: const SettingsScope(child: WindowSizeScope(child: MaterialContext())),
-      ),
+    return DependenciesScope(
+      dependencies: compositionResult.dependencies,
+      child: const SettingsScope(child: WindowSizeScope(child: MaterialContext())),
     );
   }
 }

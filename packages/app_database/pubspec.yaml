@@ -13,13 +13,13 @@ dependencies:
   flutter:
     sdk: flutter
   drift: ^2.26.1
-  drift_flutter: 0.2.4
+  drift_flutter: ^0.3.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   drift_dev: ^2.26.1
-  build_runner: 2.4.15
+  build_runner: ^2.13.1
 
 flutter:
   uses-material-design: true

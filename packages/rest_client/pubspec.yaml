@@ -18,13 +18,13 @@ dependencies:
   http: ^1.4.0
   intercepted_client: 0.0.1
   path: 1.9.1
-  meta: 1.16.0
+  meta: 1.17.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   mockito: ^5.4.6
-  build_runner: 2.4.15
+  build_runner: ^2.13.1
 
 flutter:
   uses-material-design: true

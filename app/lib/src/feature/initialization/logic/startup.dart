@@ -6,27 +6,24 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:logger/logger.dart';
 import 'package:shaker_master/src/core/common/bloc/app_bloc_observer.dart';
 import 'package:shaker_master/src/core/common/bloc/bloc_transformer.dart';
-import 'package:shaker_master/src/core/common/error_reporter/error_reporter.dart';
 import 'package:shaker_master/src/core/constant/application_config.dart';
 import 'package:shaker_master/src/feature/initialization/logic/composition_root.dart';
 import 'package:shaker_master/src/feature/initialization/widget/initialization_failed_app.dart';
+import 'package:flutter_gemma/flutter_gemma.dart';
 import 'package:shaker_master/src/feature/initialization/widget/root_context.dart';
 
 /// Initializes dependencies and runs app
 Future<void> startup() async {
   const config = ApplicationConfig();
-  final errorReporter = await createErrorReporter(config);
 
   final logger = createAppLogger(
-    observers: [
-      ErrorReporterLogObserver(errorReporter),
-      if (!kReleaseMode) const PrintingLogObserver(logLevel: LogLevel.trace),
-    ],
+    observers: [if (!kReleaseMode) const PrintingLogObserver(logLevel: LogLevel.trace)],
   );
 
   await runZonedGuarded(() async {
     // Ensure Flutter is initialized
     WidgetsFlutterBinding.ensureInitialized();
+    await FlutterGemma.initialize(maxDownloadRetries: 3);
 
     // Configure global error interception
     FlutterError.onError = logger.logFlutterError;
@@ -38,11 +35,7 @@ Future<void> startup() async {
 
     Future<void> composeAndRun() async {
       try {
-        final compositionResult = await composeDependencies(
-          config: config,
-          logger: logger,
-          errorReporter: errorReporter,
-        );
+        final compositionResult = await composeDependencies(config: config, logger: logger);
 
         runApp(RootContext(compositionResult: compositionResult));
       } on Object catch (e, stackTrace) {

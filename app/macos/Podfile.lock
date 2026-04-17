@@ -1,0 +1,41 @@
+PODS:
+  - cupertino_http (0.0.1):
+    - Flutter
+    - FlutterMacOS
+  - flutter_gemma (0.12.8):
+    - FlutterMacOS
+  - FlutterMacOS (1.0.0)
+  - liquid_curve_engine (0.1.0):
+    - FlutterMacOS
+  - objective_c (0.0.1):
+    - FlutterMacOS
+
+DEPENDENCIES:
+  - cupertino_http (from `Flutter/ephemeral/.symlinks/plugins/cupertino_http/darwin`)
+  - flutter_gemma (from `Flutter/ephemeral/.symlinks/plugins/flutter_gemma/macos`)
+  - FlutterMacOS (from `Flutter/ephemeral`)
+  - liquid_curve_engine (from `Flutter/ephemeral/.symlinks/plugins/liquid_curve_engine/macos`)
+  - objective_c (from `Flutter/ephemeral/.symlinks/plugins/objective_c/macos`)
+
+EXTERNAL SOURCES:
+  cupertino_http:
+    :path: Flutter/ephemeral/.symlinks/plugins/cupertino_http/darwin
+  flutter_gemma:
+    :path: Flutter/ephemeral/.symlinks/plugins/flutter_gemma/macos
+  FlutterMacOS:
+    :path: Flutter/ephemeral
+  liquid_curve_engine:
+    :path: Flutter/ephemeral/.symlinks/plugins/liquid_curve_engine/macos
+  objective_c:
+    :path: Flutter/ephemeral/.symlinks/plugins/objective_c/macos
+
+SPEC CHECKSUMS:
+  cupertino_http: 94ac07f5ff090b8effa6c5e2c47871d48ab7c86c
+  flutter_gemma: 775b3683116a44786fff00d641ddbd774a531686
+  FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
+  liquid_curve_engine: eda936b09758f92ff30a92a088b32a8222754641
+  objective_c: ec13431e45ba099cb734eb2829a5c1cd37986cba
+
+PODFILE CHECKSUM: 54d867c82ac51cbd61b565781b9fada492027009
+
+COCOAPODS: 1.16.2

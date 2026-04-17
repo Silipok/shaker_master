@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shaker_master/src/core/constant/localization/localization.dart';
-import 'package:shaker_master/src/feature/home/widget/home_screen.dart';
+import 'package:shaker_master/src/feature/home/widget/main_page.dart';
 import 'package:shaker_master/src/feature/settings/model/app_theme.dart';
 import 'package:shaker_master/src/feature/settings/widget/settings_scope.dart';
 
@@ -35,7 +35,7 @@ class MaterialContext extends StatelessWidget {
       locale: settings.locale,
       localizationsDelegates: Localization.localizationDelegates,
       supportedLocales: Localization.supportedLocales,
-      home: const HomeScreen(),
+      home: const MainPage(),
       builder:
           (context, child) => MediaQuery(
             key: _globalKey,

@@ -2,10 +2,8 @@ import 'package:app_database/app_database.dart';
 import 'package:clock/clock.dart';
 import 'package:logger/logger.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:shaker_master/src/core/common/error_reporter/error_reporter.dart';
-import 'package:shaker_master/src/core/common/error_reporter/sentry_error_reporter.dart';
 import 'package:shaker_master/src/core/constant/application_config.dart';
-import 'package:shaker_master/src/feature/cocktail/data/local_cocktail_repository.dart';
+import 'package:shaker_master/src/feature/auth/data/auth_repository.dart';
 import 'package:shaker_master/src/feature/initialization/model/dependencies_container.dart';
 import 'package:shaker_master/src/feature/settings/bloc/app_settings_bloc.dart';
 import 'package:shaker_master/src/feature/settings/data/app_settings_datasource.dart';
@@ -27,14 +25,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 Future<CompositionResult> composeDependencies({
   required ApplicationConfig config,
   required Logger logger,
-  required ErrorReporter errorReporter,
 }) async {
   final stopwatch = clock.stopwatch()..start();
 
   logger.info('Initializing dependencies...');
 
   // Create the dependencies container using functions.
-  final dependencies = await createDependenciesContainer(config, logger, errorReporter);
+  final dependencies = await createDependenciesContainer(config, logger);
 
   stopwatch.stop();
   logger.info('Dependencies initialized successfully in ${stopwatch.elapsedMilliseconds} ms.');
@@ -72,7 +69,6 @@ final class CompositionResult {
 Future<DependenciesContainer> createDependenciesContainer(
   ApplicationConfig config,
   Logger logger,
-  ErrorReporter errorReporter,
 ) async {
   // Create or obtain the shared preferences instance.
   final sharedPreferences = SharedPreferencesAsync();
@@ -83,20 +79,21 @@ Future<DependenciesContainer> createDependenciesContainer(
   // Create the database instance.
   final database = AppDatabase.defaults(name: 'shaker_master.db');
 
-  // Create the cocktail repository.
-  final cocktailRepository = LocalCocktailRepository(database);
-
   // Create the AppSettingsBloc using shared preferences.
   final appSettingsBloc = await createAppSettingsBloc(sharedPreferences);
+
+  // Create the auth repository using shared preferences instance.
+  // Note: We need the regular SharedPreferences, not Async version for AuthRepository.
+  final sharedPrefsInstance = await SharedPreferences.getInstance();
+  final authRepository = AuthRepository(sharedPrefsInstance);
 
   return DependenciesContainer(
     logger: logger,
     config: config,
-    errorReporter: errorReporter,
     packageInfo: packageInfo,
     appSettingsBloc: appSettingsBloc,
     database: database,
-    cocktailRepository: cocktailRepository,
+    authRepository: authRepository,
   );
 }
 
@@ -109,20 +106,6 @@ Logger createAppLogger({List<LogObserver> observers = const []}) {
   }
 
   return logger;
-}
-
-/// Creates an instance of [ErrorReporter] (using Sentry) and initializes it if needed.
-Future<ErrorReporter> createErrorReporter(ApplicationConfig config) async {
-  final errorReporter = SentryErrorReporter(
-    sentryDsn: config.sentryDsn,
-    environment: config.environment.value,
-  );
-
-  if (config.sentryDsn.isNotEmpty) {
-    await errorReporter.initialize();
-  }
-
-  return errorReporter;
 }
 
 /// Creates an instance of [AppSettingsBloc].

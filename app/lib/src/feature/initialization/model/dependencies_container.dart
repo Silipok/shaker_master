@@ -1,9 +1,8 @@
 import 'package:app_database/app_database.dart';
 import 'package:logger/logger.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:shaker_master/src/core/common/error_reporter/error_reporter.dart';
 import 'package:shaker_master/src/core/constant/application_config.dart';
-import 'package:shaker_master/src/feature/cocktail/data/cocktail_repository.dart';
+import 'package:shaker_master/src/feature/auth/data/auth_repository.dart';
 import 'package:shaker_master/src/feature/settings/bloc/app_settings_bloc.dart';
 
 /// {@template dependencies_container}
@@ -17,10 +16,9 @@ class DependenciesContainer {
     required this.logger,
     required this.config,
     required this.appSettingsBloc,
-    required this.errorReporter,
     required this.packageInfo,
     required this.database,
-    required this.cocktailRepository,
+    required this.authRepository,
   });
 
   /// [Logger] instance, used to log messages.
@@ -32,17 +30,14 @@ class DependenciesContainer {
   /// [AppSettingsBloc] instance, used to manage theme and locale.
   final AppSettingsBloc appSettingsBloc;
 
-  /// [ErrorReporter] instance, used to report errors.
-  final ErrorReporter errorReporter;
-
   /// [PackageInfo] instance, contains information about the application.
   final PackageInfo packageInfo;
 
   /// [AppDatabase] instance, used for local storage.
   final AppDatabase database;
 
-  /// [CocktailRepository] instance, used to manage cocktail data.
-  final CocktailRepository cocktailRepository;
+  /// [AuthRepository] instance, used to manage authentication.
+  final AuthRepository authRepository;
 }
 
 /// {@template testing_dependencies_container}
